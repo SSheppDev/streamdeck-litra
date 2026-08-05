@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    groups:
+      elgato-dev:
+        patterns:
+          - "@elgato/*"
+          - "@rollup/*"
+          - "rollup"
+          - "typescript"
+          - "@types/*"
+          - "@tsconfig/*"
