@@ -1,0 +1,19 @@
+.DS_Store
+node_modules/
+
+# Reference clones (read-only upstream)
+ref/litra-rs/
+ref/litra/
+
+# Stream Deck build / runtime output
+*.sdPlugin/bin
+*.sdPlugin/logs
+*.sdPlugin/node_modules
+release/
+*.streamDeckPlugin
+
+# Local tooling / noisy capture byproducts
+.venv-frida/
+ref/hid-captures/*.jsonl
+ref/hid-captures/*.jsonl.err
+ref/hid-captures/lghub-logstream.txt
