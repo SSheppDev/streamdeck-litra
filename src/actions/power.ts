@@ -1,39 +1,62 @@
 import {
 	action,
 	KeyDownEvent,
+	KeyUpEvent,
 	SingletonAction,
 	WillAppearEvent,
+	WillDisappearEvent,
 } from "@elgato/streamdeck";
 
-import { isOnAll, toggleAll, turnOffAll, turnOnAll } from "../litra-manager";
+import {
+	handleMultiKeyDown,
+	handleMultiKeyUp,
+	PowerGestureController,
+	powerOff,
+	powerOn,
+	powerToggle,
+	syncPowerKeyState,
+} from "./power-gestures";
 
 type PowerSettings = {
-	mode?: "toggle" | "on" | "off";
+	mode?: "toggle" | "on" | "off" | "multi";
 };
 
 @action({ UUID: "com.ssheppdev.litra.power" })
 export class PowerAction extends SingletonAction<PowerSettings> {
+	private readonly gestures = new PowerGestureController();
+
 	override async onWillAppear(ev: WillAppearEvent<PowerSettings>): Promise<void> {
-		await this.syncState(ev.action);
+		await syncPowerKeyState(ev.action);
+	}
+
+	override onWillDisappear(ev: WillDisappearEvent<PowerSettings>): void {
+		this.gestures.dispose(ev.action.id);
 	}
 
 	override async onKeyDown(ev: KeyDownEvent<PowerSettings>): Promise<void> {
 		const mode = ev.payload.settings.mode ?? "toggle";
-		const result =
-			mode === "on" ? turnOnAll() : mode === "off" ? turnOffAll() : toggleAll();
-
-		if (!result.ok) {
-			await ev.action.showAlert();
-		}
-
-		await this.syncState(ev.action);
-	}
-
-	private async syncState(action: WillAppearEvent<PowerSettings>["action"]): Promise<void> {
-		if (!action.isKey()) {
+		if (mode === "multi") {
+			if (!ev.action.isKey()) {
+				return;
+			}
+			handleMultiKeyDown(this.gestures, ev.action);
 			return;
 		}
-		const { allOn, deviceCount } = isOnAll();
-		await action.setState(deviceCount > 0 && allOn ? 1 : 0);
+
+		if (mode === "on") {
+			await powerOn(ev.action);
+		} else if (mode === "off") {
+			await powerOff(ev.action);
+		} else {
+			await powerToggle(ev.action);
+		}
+	}
+
+	override onKeyUp(ev: KeyUpEvent<PowerSettings>): void {
+		const mode = ev.payload.settings.mode ?? "toggle";
+		if (mode !== "multi" || !ev.action.isKey()) {
+			return;
+		}
+		handleMultiKeyUp(this.gestures, ev.action);
 	}
 }

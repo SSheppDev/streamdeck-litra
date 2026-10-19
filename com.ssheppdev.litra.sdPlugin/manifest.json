@@ -8,8 +8,34 @@
 			"Name": "Power",
 			"UUID": "com.ssheppdev.litra.power",
 			"Icon": "imgs/actions/power/icon",
-			"Tooltip": "Turn Litra lights on, off, or toggle.",
+			"Tooltip": "Turn Litra lights on, off, toggle, or multi-gesture.",
 			"PropertyInspectorPath": "ui/power.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Name": "Off",
+					"Image": "imgs/actions/power/key-off",
+					"TitleAlignment": "bottom",
+					"ShowTitle": false
+				},
+				{
+					"Name": "On",
+					"Image": "imgs/actions/power/key-on",
+					"TitleAlignment": "bottom",
+					"ShowTitle": false
+				}
+			]
+		},
+		{
+			"Name": "Power Multi",
+			"UUID": "com.ssheppdev.litra.powermulti",
+			"Icon": "imgs/actions/power/icon",
+			"Tooltip": "Single press: toggle. Double press: on. Hold: off.",
+			"PropertyInspectorPath": "ui/power-multi.html",
 			"Controllers": [
 				"Keypad"
 			],

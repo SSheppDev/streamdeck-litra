@@ -35,15 +35,18 @@
 </p>
 
 <p align="center">
-  <sub>Power · Brightness · Temperature · Rear</sub>
+  <sub>Power · Power Multi · Brightness · Temperature · Rear</sub>
 </p>
 
 | | Action | Key | Dial (Stream Deck+) |
 | :---: | :--- | :--- | :--- |
-| <img src="com.ssheppdev.litra.sdPlugin/imgs/actions/power/icon@2x.png" width="28" alt="" /> | **Power** | On / off / toggle | — |
+| <img src="com.ssheppdev.litra.sdPlugin/imgs/actions/power/icon@2x.png" width="28" alt="" /> | **Power** | On / off / toggle, or multi-gesture mode | — |
+| <img src="com.ssheppdev.litra.sdPlugin/imgs/actions/power/icon@2x.png" width="28" alt="" /> | **Power Multi** | Single = toggle · Double = on · Hold = off | — |
 | <img src="com.ssheppdev.litra.sdPlugin/imgs/actions/brightness/icon@2x.png" width="28" alt="" /> | **Brightness** | Jump to a preset % | Rotate to adjust; **press toggles power** |
 | <img src="com.ssheppdev.litra.sdPlugin/imgs/actions/temperature/icon@2x.png" width="28" alt="" /> | **Temperature** | Jump to a preset Kelvin | Rotate to adjust; **press toggles power** |
 | <img src="com.ssheppdev.litra.sdPlugin/imgs/actions/rear/icon@2x.png" width="28" alt="" /> | **Rear** | Beam LX rear presets, freestyle color, or off | — |
+
+**Power** modes (property inspector): Toggle, On, Off, or **Multi** (same gestures as Power Multi). The on/off icon follows light state after each successful command.
 
 - Works with **all connected Litra devices** at once (no per-light picker yet)
 - Beam LX front brightness uses a corrected lumen read (stock JS only used the low byte)
@@ -85,7 +88,7 @@ Quit **Logitech G HUB** if HID access fights the plugin (especially on macOS).
 
 1. Download the latest `.streamDeckPlugin` from [Releases](https://github.com/SSheppDev/streamdeck-litra/releases).
 2. Double-click the file (or open it with Stream Deck).
-3. Drag **Power**, **Brightness**, **Temperature**, or **Rear** onto your layout.
+3. Drag **Power**, **Power Multi**, **Brightness**, **Temperature**, or **Rear** onto your layout.
 
 That’s the full end-user install — the package already includes `litra` / `node-hid`.
 
