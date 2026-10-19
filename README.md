@@ -30,10 +30,12 @@
   <img src="com.ssheppdev.litra.sdPlugin/imgs/actions/brightness/key@2x.png" width="88" alt="Brightness" />
   &nbsp;&nbsp;
   <img src="com.ssheppdev.litra.sdPlugin/imgs/actions/temperature/key@2x.png" width="88" alt="Temperature" />
+  &nbsp;&nbsp;
+  <img src="com.ssheppdev.litra.sdPlugin/imgs/actions/rear/key@2x.png" width="88" alt="Rear" />
 </p>
 
 <p align="center">
-  <sub>Power · Brightness · Temperature</sub>
+  <sub>Power · Brightness · Temperature · Rear</sub>
 </p>
 
 | | Action | Key | Dial (Stream Deck+) |
@@ -41,9 +43,11 @@
 | <img src="com.ssheppdev.litra.sdPlugin/imgs/actions/power/icon@2x.png" width="28" alt="" /> | **Power** | On / off / toggle | — |
 | <img src="com.ssheppdev.litra.sdPlugin/imgs/actions/brightness/icon@2x.png" width="28" alt="" /> | **Brightness** | Jump to a preset % | Rotate to adjust; **press toggles power** |
 | <img src="com.ssheppdev.litra.sdPlugin/imgs/actions/temperature/icon@2x.png" width="28" alt="" /> | **Temperature** | Jump to a preset Kelvin | Rotate to adjust; **press toggles power** |
+| <img src="com.ssheppdev.litra.sdPlugin/imgs/actions/rear/icon@2x.png" width="28" alt="" /> | **Rear** | Beam LX rear presets, freestyle color, or off | — |
 
 - Works with **all connected Litra devices** at once (no per-light picker yet)
 - Beam LX front brightness uses a corrected lumen read (stock JS only used the low byte)
+- **Rear** broadcasts to every Beam LX; Glow / Beam are skipped. Screen Sampler and G HUB animation files are not included — those are host-side.
 - macOS and Windows (USB; Bluetooth control is not supported by the underlying stack)
 
 End users only need Stream Deck software and a USB-connected Litra — nothing else to install (no Node, no `litra` CLI, no Homebrew). The plugin ships with its USB HID stack baked in.
@@ -52,13 +56,13 @@ Under the hood (for developers): it uses the [`litra`](https://github.com/timrog
 
 ## Supported hardware
 
-| Light | Front power / brightness / temperature |
-|-------|----------------------------------------|
-| Litra Glow | Yes |
-| Litra Beam | Yes |
-| Litra Beam LX | Yes (front key light) |
+| Light | Front power / brightness / temperature | Rear RGB |
+|-------|----------------------------------------|----------|
+| Litra Glow | Yes | — |
+| Litra Beam | Yes | — |
+| Litra Beam LX | Yes (front key light) | Yes (presets + freestyle + off) |
 
-**Not included (yet):** Beam LX rear RGB / G HUB effect presets. Research notes are in [`ref/hid-captures/NOTES.md`](ref/hid-captures/NOTES.md).
+**Rear** supports Fixed, Breathing, Color Cycle, Color Wave, Pulsar Point, freestyle zone color, and off. It does not include G HUB Screen Sampler or saved Animations (Contrast, Lightning, and the rest) — those run on the host. Packet notes are in [`ref/hid-captures/NOTES.md`](ref/hid-captures/NOTES.md).
 
 ## Requirements
 
@@ -81,7 +85,7 @@ Quit **Logitech G HUB** if HID access fights the plugin (especially on macOS).
 
 1. Download the latest `.streamDeckPlugin` from [Releases](https://github.com/SSheppDev/streamdeck-litra/releases).
 2. Double-click the file (or open it with Stream Deck).
-3. Drag **Power**, **Brightness**, or **Temperature** onto your layout.
+3. Drag **Power**, **Brightness**, **Temperature**, or **Rear** onto your layout.
 
 That’s the full end-user install — the package already includes `litra` / `node-hid`.
 
@@ -124,9 +128,10 @@ npm run validate
 ## Usage tips
 
 - **Brightness / temperature keys** show the configured preset as the title.
+- **Rear keys** show the saved effect name (Fixed, Breathe, Cycle, Wave, Pulsar, Color, or Off).
 - **Dials** use Stream Deck’s built-in `$A1` layout; rotate adjusts, press toggles front power.
 - With **no lights connected**, actions show Stream Deck’s alert indicator.
-- Multiple lights are always controlled together in v1.
+- Multiple lights are always controlled together (Rear: every Beam LX).
 
 ## Credits
 

@@ -171,6 +171,50 @@ function actionIconTemperature(size) {
         stroke="#FFFFFF" stroke-width="${sw * 0.7}" stroke-linecap="round"/>`;
 }
 
+/** Seven-zone rear strip — key tile */
+function rearGlyph(size) {
+	const marginX = size * 0.14;
+	const barH = size * 0.14;
+	const barY = size * 0.58;
+	const gap = size * 0.02;
+	const zones = 7;
+	const totalGap = gap * (zones - 1);
+	const zoneW = (size - marginX * 2 - totalGap) / zones;
+	const colors = ["#FF5A5A", "#FFB347", "#F5C542", "#7CFF8A", "#7EC8FF", "#A78BFA", "#FF7AD9"];
+	const zonesSvg = colors
+		.map((c, i) => {
+			const x = marginX + i * (zoneW + gap);
+			return `<rect x="${x}" y="${barY}" width="${zoneW}" height="${barH}" rx="${barH * 0.35}" fill="${c}"/>`;
+		})
+		.join("\n");
+	const cx = size / 2;
+	const lampY = size * 0.32;
+	const headR = size * 0.16;
+	return `
+  ${keyBg(size)}
+  <path d="M ${cx - headR} ${lampY}
+           A ${headR} ${headR * 0.8} 0 0 1 ${cx + headR} ${lampY}
+           L ${cx + headR * 0.5} ${lampY + size * 0.12}
+           L ${cx - headR * 0.5} ${lampY + size * 0.12} Z"
+        fill="${COLORS.accent}" opacity="0.85"/>
+  ${zonesSvg}`;
+}
+
+/** Action-list icon: monochrome seven-segment bar */
+function actionIconRear(size) {
+	const marginX = size * 0.08;
+	const barH = size * 0.22;
+	const barY = (size - barH) / 2;
+	const gap = size * 0.04;
+	const zones = 7;
+	const totalGap = gap * (zones - 1);
+	const zoneW = (size - marginX * 2 - totalGap) / zones;
+	return Array.from({ length: zones }, (_, i) => {
+		const x = marginX + i * (zoneW + gap);
+		return `<rect x="${x}" y="${barY}" width="${zoneW}" height="${barH}" rx="${barH * 0.3}" fill="#FFFFFF"/>`;
+	}).join("\n");
+}
+
 async function writePng(filePath, svg, size) {
 	mkdirSync(path.dirname(filePath), { recursive: true });
 	await sharp(Buffer.from(svgDoc(size, svg)))
@@ -190,6 +234,7 @@ async function main() {
 	await writePair(path.join(root, "actions/power/key-on"), (s) => powerGlyph(s, { on: true }), 72);
 	await writePair(path.join(root, "actions/brightness/key"), (s) => brightnessGlyph(s), 72);
 	await writePair(path.join(root, "actions/temperature/key"), (s) => temperatureGlyph(s), 72);
+	await writePair(path.join(root, "actions/rear/key"), (s) => rearGlyph(s), 72);
 
 	// Encoder icons (same art)
 	await writePair(path.join(root, "actions/brightness/encoder"), (s) => brightnessGlyph(s), 72);
@@ -199,6 +244,7 @@ async function main() {
 	await writePair(path.join(root, "actions/power/icon"), (s) => actionIconPower(s), 20);
 	await writePair(path.join(root, "actions/brightness/icon"), (s) => actionIconBrightness(s), 20);
 	await writePair(path.join(root, "actions/temperature/icon"), (s) => actionIconTemperature(s), 20);
+	await writePair(path.join(root, "actions/rear/icon"), (s) => actionIconRear(s), 20);
 
 	// Category (28 / 56)
 	await writePair(path.join(root, "plugin/category-icon"), (s) => categoryGlyph(s), 28);
