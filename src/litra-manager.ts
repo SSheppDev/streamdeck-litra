@@ -312,3 +312,259 @@ export function createDialDebouncer(
 		}, delayMs);
 	};
 }
+
+// --- Beam LX rear RGB (0x8040 / 0x8071 / 0x8081) ---
+
+export type RearEffect =
+	| "fixed"
+	| "breathing"
+	| "color_cycle"
+	| "color_wave"
+	| "pulsar"
+	| "freestyle"
+	| "off";
+
+export type RearSpeed = "slow" | "medium" | "fast";
+export type RearDirection = "right" | "left";
+export type RearZone =
+	| "all"
+	| "left"
+	| "center"
+	| "right"
+	| "1"
+	| "2"
+	| "3"
+	| "4"
+	| "5"
+	| "6"
+	| "7";
+
+export type RearSettings = {
+	effect?: RearEffect;
+	color?: string;
+	brightness?: number;
+	speed?: RearSpeed;
+	direction?: RearDirection;
+	zone?: RearZone;
+};
+
+const REAR_REPORT_LEN = 20;
+const REAR_CLAIM = [0x11, 0xff, 0x0b, 0x5c, 0x01, 0x03, 0x06];
+const REAR_ZONE_COMMIT = [0x11, 0xff, 0x0c, 0x7b, 0x00, 0x00, 0x01];
+
+/** G HUB Left / Center / Right quick groups on the seven-zone strip (1 = left). */
+const REAR_ZONE_GROUPS: Record<"all" | "left" | "center" | "right", number[]> = {
+	all: [1, 2, 3, 4, 5, 6, 7],
+	left: [1, 2],
+	center: [3, 4, 5],
+	right: [6, 7],
+};
+
+const REAR_SPEED_MS: Record<RearSpeed, number> = {
+	slow: 5000,
+	medium: 3000,
+	fast: 1500,
+};
+
+function writeReport(device: Device, values: number[]): void {
+	asHid(device).write(padRight(values, REAR_REPORT_LEN));
+	drainAck(device);
+}
+
+function clampRearBrightness(value: number | undefined): number {
+	const n = Number(value ?? 100);
+	if (!Number.isFinite(n)) {
+		return 100;
+	}
+	return Math.max(1, Math.min(100, Math.round(n)));
+}
+
+function parseHexColor(
+	color: string | undefined,
+	fallback: [number, number, number],
+	opts?: { minChannel?: number },
+): [number, number, number] {
+	const min = opts?.minChannel ?? 0;
+	const raw = (color ?? "").trim().replace(/^#/, "");
+	if (!/^[0-9a-fA-F]{6}$/.test(raw)) {
+		return fallback;
+	}
+	return [
+		Math.max(min, parseInt(raw.slice(0, 2), 16)),
+		Math.max(min, parseInt(raw.slice(2, 4), 16)),
+		Math.max(min, parseInt(raw.slice(4, 6), 16)),
+	];
+}
+
+function periodBytes(ms: number): [number, number] {
+	const clamped = Math.max(0, Math.min(0xffff, Math.round(ms)));
+	return [(clamped >> 8) & 0xff, clamped & 0xff];
+}
+
+function resolveZones(zone: RearZone | undefined): number[] {
+	const key = zone ?? "all";
+	if (key === "all" || key === "left" || key === "center" || key === "right") {
+		return REAR_ZONE_GROUPS[key];
+	}
+	const n = Number(key);
+	if (n >= 1 && n <= 7) {
+		return [n];
+	}
+	return REAR_ZONE_GROUPS.all;
+}
+
+function setRearOn(device: Device, on: boolean): void {
+	writeReport(device, [0x11, 0xff, 0x0a, 0x4b, on ? 0x01 : 0x00]);
+}
+
+function setRearBrightnessPercentage(device: Device, percentage: number | undefined): void {
+	writeReport(device, [0x11, 0xff, 0x0a, 0x2b, 0x00, clampRearBrightness(percentage)]);
+}
+
+function setRearZoneColor(device: Device, zoneId: number, r: number, g: number, b: number): void {
+	writeReport(device, [0x11, 0xff, 0x0c, 0x1b, zoneId, r, g, b, 0xff]);
+	writeReport(device, REAR_ZONE_COMMIT);
+}
+
+function claimRearSoftwareControl(device: Device): void {
+	writeReport(device, REAR_CLAIM);
+}
+
+function writeRearEffect(device: Device, settings: RearSettings): void {
+	const effect = settings.effect ?? "pulsar";
+	const brightness = clampRearBrightness(settings.brightness);
+	const speed = settings.speed ?? "medium";
+	const period = REAR_SPEED_MS[speed] ?? REAR_SPEED_MS.medium;
+	const [pHi, pLo] = periodBytes(period);
+	const direction = settings.direction === "left" ? 0x00 : 0x01;
+
+	let packet: number[];
+	switch (effect) {
+		case "fixed": {
+			const [r, g, b] = parseHexColor(settings.color, [0x00, 0xff, 0xff]);
+			// Captured: 11 ff 0b 1c 00 00 00 RR GG BB 02
+			packet = [0x11, 0xff, 0x0b, 0x1c, 0x00, 0x00, 0x00, r, g, b, 0x02];
+			break;
+		}
+		case "breathing": {
+			const [r, g, b] = parseHexColor(settings.color, [0x00, 0xff, 0xff]);
+			// Captured: 11 ff 0b 1c 00 01 00 RR GG BB PP PP 00 BR
+			packet = [0x11, 0xff, 0x0b, 0x1c, 0x00, 0x01, 0x00, r, g, b, pHi, pLo, 0x00, brightness];
+			break;
+		}
+		case "color_cycle": {
+			packet = [
+				0x11, 0xff, 0x0b, 0x1c, 0x00, 0x02, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00, pHi, pLo, brightness,
+			];
+			break;
+		}
+		case "color_wave": {
+			packet = [
+				0x11,
+				0xff,
+				0x0b,
+				0x1c,
+				0x01,
+				0x01,
+				0x00,
+				0xff,
+				0x00,
+				0x00,
+				0x00,
+				0x00,
+				pHi,
+				pLo,
+				brightness,
+				direction,
+				0x00,
+			];
+			break;
+		}
+		case "pulsar":
+		default: {
+			// Keep captured b8 fc; only brightness (0x64) is user-tunable. Period stays 3000 ms.
+			packet = [
+				0x11, 0xff, 0x0b, 0x1c, 0x01, 0x02, 0x00, 0xb8, 0xfc, 0x00, 0x00, 0x00, 0x0b, 0xb8, brightness,
+				0x00, 0x00,
+			];
+			break;
+		}
+	}
+
+	writeReport(device, packet);
+}
+
+function writeRearFreestyle(device: Device, settings: RearSettings): void {
+	// 0x8081 rejects zero channels; litra-rs clamps each to ≥ 1.
+	const [r, g, b] = parseHexColor(settings.color, [0xff, 0xff, 0xff], { minChannel: 1 });
+	for (const zoneId of resolveZones(settings.zone)) {
+		setRearZoneColor(device, zoneId, r, g, b);
+	}
+}
+
+/**
+ * Beam LX only. Glow / Beam are skipped (their handles are still closed).
+ * Zero Beam LX devices = failure.
+ */
+export function forEachBeamLX(fn: (device: Device) => void): BroadcastResult {
+	let devices: Device[] = [];
+	try {
+		devices = findDevices();
+	} catch (error) {
+		logger.error(`findDevices failed: ${String(error)}`);
+		return { ok: false, deviceCount: 0, failures: 1 };
+	}
+
+	const beamLx = devices.filter((device) => device.type === DeviceType.LitraBeamLX);
+	for (const device of devices) {
+		if (device.type !== DeviceType.LitraBeamLX) {
+			closeDevice(device);
+		}
+	}
+
+	if (beamLx.length === 0) {
+		logger.warn("No Litra Beam LX devices found for rear control");
+		return { ok: false, deviceCount: 0, failures: 1 };
+	}
+
+	let failures = 0;
+	for (const device of beamLx) {
+		try {
+			fn(device);
+		} catch (error) {
+			failures += 1;
+			logger.error(`Litra Beam LX rear operation failed: ${String(error)}`);
+		} finally {
+			closeDevice(device);
+		}
+	}
+
+	return {
+		ok: failures === 0,
+		deviceCount: beamLx.length,
+		failures,
+	};
+}
+
+/** Apply a rear preset, freestyle color, or off to every connected Beam LX. */
+export function setRearAll(settings: RearSettings): BroadcastResult {
+	const effect = settings.effect ?? "pulsar";
+
+	return forEachBeamLX((device) => {
+		if (effect === "off") {
+			setRearOn(device, false);
+			return;
+		}
+
+		setRearOn(device, true);
+		setRearBrightnessPercentage(device, settings.brightness);
+
+		if (effect === "freestyle") {
+			writeRearFreestyle(device, settings);
+			return;
+		}
+
+		claimRearSoftwareControl(device);
+		writeRearEffect(device, { ...settings, effect });
+	});
+}

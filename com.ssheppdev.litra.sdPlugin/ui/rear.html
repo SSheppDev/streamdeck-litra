@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<title>Litra Rear</title>
+	<meta charset="utf-8" />
+	<script src="https://sdpi-components.dev/releases/v4/sdpi-components.js"></script>
+</head>
+<body>
+	<sdpi-item label="Effect">
+		<sdpi-select setting="effect" default="pulsar" id="effect">
+			<option value="fixed">Fixed</option>
+			<option value="breathing">Breathing</option>
+			<option value="color_cycle">Color Cycle</option>
+			<option value="color_wave">Color Wave</option>
+			<option value="pulsar">Pulsar Point</option>
+			<option value="freestyle">Freestyle</option>
+			<option value="off">Off</option>
+		</sdpi-select>
+	</sdpi-item>
+
+	<div id="row-color" hidden>
+		<sdpi-item label="Color">
+			<sdpi-color setting="color" default="#00FFFF"></sdpi-color>
+		</sdpi-item>
+	</div>
+
+	<div id="row-brightness" hidden>
+		<sdpi-item label="Brightness">
+			<sdpi-range setting="brightness" min="1" max="100" step="1" default="100" showlabels></sdpi-range>
+		</sdpi-item>
+	</div>
+
+	<div id="row-speed" hidden>
+		<sdpi-item label="Speed">
+			<sdpi-select setting="speed" default="medium">
+				<option value="slow">Slow</option>
+				<option value="medium">Medium</option>
+				<option value="fast">Fast</option>
+			</sdpi-select>
+		</sdpi-item>
+	</div>
+
+	<div id="row-direction" hidden>
+		<sdpi-item label="Direction">
+			<sdpi-select setting="direction" default="right">
+				<option value="right">Right</option>
+				<option value="left">Left</option>
+			</sdpi-select>
+		</sdpi-item>
+	</div>
+
+	<div id="row-zone" hidden>
+		<sdpi-item label="Zone">
+			<sdpi-select setting="zone" default="all">
+				<option value="all">All</option>
+				<option value="left">Left</option>
+				<option value="center">Center</option>
+				<option value="right">Right</option>
+				<option value="1">Zone 1</option>
+				<option value="2">Zone 2</option>
+				<option value="3">Zone 3</option>
+				<option value="4">Zone 4</option>
+				<option value="5">Zone 5</option>
+				<option value="6">Zone 6</option>
+				<option value="7">Zone 7</option>
+			</sdpi-select>
+		</sdpi-item>
+	</div>
+
+	<script>
+		(async () => {
+			const rows = {
+				color: document.getElementById("row-color"),
+				brightness: document.getElementById("row-brightness"),
+				speed: document.getElementById("row-speed"),
+				direction: document.getElementById("row-direction"),
+				zone: document.getElementById("row-zone"),
+			};
+
+			const visibility = {
+				fixed: { color: true, brightness: true },
+				breathing: { color: true, brightness: true, speed: true },
+				color_cycle: { brightness: true, speed: true },
+				color_wave: { brightness: true, speed: true, direction: true },
+				pulsar: { brightness: true },
+				freestyle: { color: true, brightness: true, zone: true },
+				off: {},
+			};
+
+			function applyVisibility(effect) {
+				const shown = visibility[effect] || visibility.pulsar;
+				for (const [key, el] of Object.entries(rows)) {
+					el.hidden = !shown[key];
+				}
+			}
+
+			const info = await SDPIComponents.streamDeckClient.getConnectionInfo();
+			const effect = info?.actionInfo?.payload?.settings?.effect || "pulsar";
+			applyVisibility(effect);
+
+			const effectEl = document.getElementById("effect");
+			effectEl?.addEventListener("valuechange", (ev) => {
+				applyVisibility(ev?.target?.value || "pulsar");
+			});
+			effectEl?.addEventListener("change", (ev) => {
+				applyVisibility(ev?.target?.value || "pulsar");
+			});
+		})();
+	</script>
+</body>
+</html>

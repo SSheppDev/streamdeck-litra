@@ -85,6 +85,25 @@
 					"TitleColor": "#ffffff"
 				}
 			]
+		},
+		{
+			"Name": "Rear",
+			"UUID": "com.ssheppdev.litra.rear",
+			"Icon": "imgs/actions/rear/icon",
+			"Tooltip": "Set Beam LX rear RGB presets, freestyle color, or off.",
+			"PropertyInspectorPath": "ui/rear.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/rear/key",
+					"TitleAlignment": "bottom",
+					"FontSize": 12,
+					"TitleColor": "#ffffff"
+				}
+			]
 		}
 	],
 	"Category": "Litra",
