@@ -100,7 +100,7 @@
 				{
 					"Image": "imgs/actions/rear/key",
 					"TitleAlignment": "top",
-					"FontSize": 12,
+					"FontSize": 14,
 					"TitleColor": "#ffffff",
 					"ShowTitle": true
 				}

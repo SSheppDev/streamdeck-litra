@@ -128,7 +128,7 @@ npm run validate
 ## Usage tips
 
 - **Brightness / temperature keys** show the configured preset as the title.
-- **Rear keys** show the saved effect name (Fixed, Breathe, Cycle, Wave, Pulsar, Color, or Off).
+- **Rear keys** show the saved effect name (Fixed, Breathe, Cycle, Wave, Pulsar, Color, or Off). Freestyle shows color + zone on the key. Stream Deck’s Title field in the side panel is intentionally disabled for these actions — the plugin owns the label (same as Brightness / Temperature).
 - **Dials** use Stream Deck’s built-in `$A1` layout; rotate adjusts, press toggles front power.
 - With **no lights connected**, actions show Stream Deck’s alert indicator.
 - Multiple lights are always controlled together (Rear: every Beam LX).
