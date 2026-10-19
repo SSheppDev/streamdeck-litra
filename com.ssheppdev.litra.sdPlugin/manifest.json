@@ -95,7 +95,7 @@
 			"Controllers": [
 				"Keypad"
 			],
-			"UserTitleEnabled": false,
+			"UserTitleEnabled": true,
 			"States": [
 				{
 					"Image": "imgs/actions/rear/key",

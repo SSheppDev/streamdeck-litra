@@ -100,16 +100,33 @@ function effectTitle(settings: RearSettings): string {
 	return TITLE_BY_EFFECT[effect] ?? TITLE_BY_EFFECT.pulsar;
 }
 
+/** Settings that drive the auto key title (effect name / Freestyle hex+zone[+bri]). */
+function titleDriveKey(settings: RearSettings): string {
+	const effect = settings.effect ?? "pulsar";
+	if (effect !== "freestyle") {
+		return effect;
+	}
+	return [
+		effect,
+		settings.color ?? "",
+		settings.zone ?? "all",
+		String(brightnessTitle(settings.brightness)),
+	].join("|");
+}
+
 @action({ UUID: "com.ssheppdev.litra.rear" })
 export class RearAction extends SingletonAction<RearSettings> {
+	/** Last title-driving settings per action instance — avoid fighting a custom Title on unrelated updates. */
+	private readonly lastTitleDrive = new Map<string, string>();
+
 	override async onWillAppear(ev: WillAppearEvent<RearSettings>): Promise<void> {
 		const settings = await this.ensureFreestyleSettings(ev.action, ev.payload.settings);
-		await this.refreshTitle(ev.action, settings);
+		await this.refreshTitle(ev.action, settings, true);
 	}
 
 	override async onDidReceiveSettings(ev: DidReceiveSettingsEvent<RearSettings>): Promise<void> {
 		const settings = await this.ensureFreestyleSettings(ev.action, ev.payload.settings);
-		await this.refreshTitle(ev.action, settings);
+		await this.refreshTitle(ev.action, settings, false);
 	}
 
 	override async onKeyDown(ev: KeyDownEvent<RearSettings>): Promise<void> {
@@ -119,7 +136,8 @@ export class RearAction extends SingletonAction<RearSettings> {
 			await ev.action.showAlert();
 			return;
 		}
-		await this.refreshTitle(ev.action, settings);
+		// Only refresh when title-driving settings changed (e.g. freestyle defaults just filled in).
+		await this.refreshTitle(ev.action, settings, false);
 	}
 
 	private async ensureFreestyleSettings(
@@ -133,10 +151,20 @@ export class RearAction extends SingletonAction<RearSettings> {
 		return next;
 	}
 
-	private async refreshTitle(action: ActionRef, settings: RearSettings): Promise<void> {
+	private async refreshTitle(
+		action: ActionRef,
+		settings: RearSettings,
+		force: boolean,
+	): Promise<void> {
 		if (!action.isKey()) {
 			return;
 		}
+		const key = titleDriveKey(settings);
+		const id = action.id;
+		if (!force && this.lastTitleDrive.get(id) === key) {
+			return;
+		}
+		this.lastTitleDrive.set(id, key);
 		await action.setTitle(effectTitle(settings));
 	}
 }
