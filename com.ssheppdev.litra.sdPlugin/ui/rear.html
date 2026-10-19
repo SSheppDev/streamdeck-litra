@@ -20,13 +20,13 @@
 
 	<div id="row-color" hidden>
 		<sdpi-item label="Color">
-			<sdpi-color setting="color" default="#00FFFF"></sdpi-color>
+			<sdpi-color setting="color" default="#00FFFF" id="color"></sdpi-color>
 		</sdpi-item>
 	</div>
 
 	<div id="row-brightness" hidden>
 		<sdpi-item label="Brightness">
-			<sdpi-range setting="brightness" min="1" max="100" step="1" default="100" showlabels></sdpi-range>
+			<sdpi-range setting="brightness" min="1" max="100" step="1" default="100" showlabels id="brightness"></sdpi-range>
 		</sdpi-item>
 	</div>
 
@@ -51,19 +51,25 @@
 
 	<div id="row-zone" hidden>
 		<sdpi-item label="Zone">
-			<sdpi-select setting="zone" default="all">
-				<option value="all">All</option>
-				<option value="left">Left</option>
-				<option value="center">Center</option>
-				<option value="right">Right</option>
-				<option value="1">Zone 1</option>
-				<option value="2">Zone 2</option>
-				<option value="3">Zone 3</option>
-				<option value="4">Zone 4</option>
-				<option value="5">Zone 5</option>
-				<option value="6">Zone 6</option>
-				<option value="7">Zone 7</option>
+			<sdpi-select setting="zone" default="all" id="zone">
+				<option value="all">All zones</option>
+				<option value="left">Left (Z1–2)</option>
+				<option value="center">Center (Z3–5)</option>
+				<option value="right">Right (Z6–7)</option>
+				<option value="1">Z1 (far left)</option>
+				<option value="2">Z2</option>
+				<option value="3">Z3</option>
+				<option value="4">Z4 (middle)</option>
+				<option value="5">Z5</option>
+				<option value="6">Z6</option>
+				<option value="7">Z7 (far right)</option>
 			</sdpi-select>
+		</sdpi-item>
+	</div>
+
+	<div id="row-freestyle-summary" hidden>
+		<sdpi-item label="Key shows">
+			<span id="freestyle-summary" style="opacity: 0.85;">—</span>
 		</sdpi-item>
 	</div>
 
@@ -75,6 +81,7 @@
 				speed: document.getElementById("row-speed"),
 				direction: document.getElementById("row-direction"),
 				zone: document.getElementById("row-zone"),
+				summary: document.getElementById("row-freestyle-summary"),
 			};
 
 			const visibility = {
@@ -83,19 +90,68 @@
 				color_cycle: { brightness: true, speed: true },
 				color_wave: { brightness: true, speed: true, direction: true },
 				pulsar: { brightness: true },
-				freestyle: { color: true, brightness: true, zone: true },
+				freestyle: { color: true, brightness: true, zone: true, summary: true },
 				off: {},
 			};
+
+			const zoneLabels = {
+				all: "All",
+				left: "Left",
+				center: "Center",
+				right: "Right",
+				"1": "Z1",
+				"2": "Z2",
+				"3": "Z3",
+				"4": "Z4",
+				"5": "Z5",
+				"6": "Z6",
+				"7": "Z7",
+			};
+
+			function shortHex(color) {
+				const raw = String(color || "#00FFFF").trim().replace(/^#/, "");
+				const hex = /^[0-9a-fA-F]{8}$/.test(raw)
+					? raw.slice(0, 6)
+					: /^[0-9a-fA-F]{6}$/.test(raw)
+						? raw
+						: "00FFFF";
+				const r = hex.slice(0, 2);
+				const g = hex.slice(2, 4);
+				const b = hex.slice(4, 6);
+				if (r[0] === r[1] && g[0] === g[1] && b[0] === b[1]) {
+					return `#${r[0]}${g[0]}${b[0]}`.toUpperCase();
+				}
+				return `#${hex.toUpperCase()}`;
+			}
+
+			function readControlValue(id, fallback) {
+				const el = document.getElementById(id);
+				const value = el?.value;
+				return value === undefined || value === null || value === "" ? fallback : value;
+			}
+
+			function updateFreestyleSummary() {
+				const summaryEl = document.getElementById("freestyle-summary");
+				if (!summaryEl || rows.summary.hidden) {
+					return;
+				}
+				const hex = shortHex(readControlValue("color", "#00FFFF"));
+				const zone = zoneLabels[readControlValue("zone", "all")] || "All";
+				const bri = Math.max(1, Math.min(100, Math.round(Number(readControlValue("brightness", 100)) || 100)));
+				summaryEl.textContent = bri === 100 ? `${hex} · ${zone}` : `${hex} · ${zone} · ${bri}%`;
+			}
 
 			function applyVisibility(effect) {
 				const shown = visibility[effect] || visibility.pulsar;
 				for (const [key, el] of Object.entries(rows)) {
 					el.hidden = !shown[key];
 				}
+				updateFreestyleSummary();
 			}
 
 			const info = await SDPIComponents.streamDeckClient.getConnectionInfo();
-			const effect = info?.actionInfo?.payload?.settings?.effect || "pulsar";
+			const settings = info?.actionInfo?.payload?.settings || {};
+			const effect = settings.effect || "pulsar";
 			applyVisibility(effect);
 
 			const effectEl = document.getElementById("effect");
@@ -105,6 +161,16 @@
 			effectEl?.addEventListener("change", (ev) => {
 				applyVisibility(ev?.target?.value || "pulsar");
 			});
+
+			for (const id of ["color", "brightness", "zone"]) {
+				const el = document.getElementById(id);
+				el?.addEventListener("valuechange", updateFreestyleSummary);
+				el?.addEventListener("change", updateFreestyleSummary);
+				el?.addEventListener("input", updateFreestyleSummary);
+			}
+
+			// After sdpi hydrates defaults from settings, refresh the summary once more.
+			setTimeout(updateFreestyleSummary, 0);
 		})();
 	</script>
 </body>

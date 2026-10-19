@@ -503,7 +503,8 @@ function writeRearEffect(device: Device, settings: RearSettings): void {
 
 function writeRearFreestyle(device: Device, settings: RearSettings): void {
 	// 0x8081 rejects zero channels; litra-rs clamps each to ≥ 1.
-	const [r, g, b] = parseHexColor(settings.color, [0xff, 0xff, 0xff], { minChannel: 1 });
+	// Fallback matches PI default (#00FFFF) so unset color matches the key title.
+	const [r, g, b] = parseHexColor(settings.color, [0x00, 0xff, 0xff], { minChannel: 1 });
 	for (const zoneId of resolveZones(settings.zone)) {
 		setRearZoneColor(device, zoneId, r, g, b);
 	}
