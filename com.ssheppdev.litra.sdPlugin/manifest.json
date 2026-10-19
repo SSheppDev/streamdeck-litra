@@ -1,15 +1,41 @@
 {
 	"$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
 	"Name": "Litra",
-	"Version": "1.0.1.0",
+	"Version": "1.1.0.0",
 	"Author": "Seth Sheppard",
 	"Actions": [
 		{
 			"Name": "Power",
 			"UUID": "com.ssheppdev.litra.power",
 			"Icon": "imgs/actions/power/icon",
-			"Tooltip": "Turn Litra lights on, off, or toggle.",
+			"Tooltip": "Turn Litra lights on, off, toggle, or multi-gesture.",
 			"PropertyInspectorPath": "ui/power.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Name": "Off",
+					"Image": "imgs/actions/power/key-off",
+					"TitleAlignment": "bottom",
+					"ShowTitle": false
+				},
+				{
+					"Name": "On",
+					"Image": "imgs/actions/power/key-on",
+					"TitleAlignment": "bottom",
+					"ShowTitle": false
+				}
+			]
+		},
+		{
+			"Name": "Power Multi",
+			"UUID": "com.ssheppdev.litra.powermulti",
+			"Icon": "imgs/actions/power/icon",
+			"Tooltip": "Single press: toggle. Double press: on. Hold: off.",
+			"PropertyInspectorPath": "ui/power-multi.html",
 			"Controllers": [
 				"Keypad"
 			],
@@ -83,6 +109,26 @@
 					"TitleAlignment": "bottom",
 					"FontSize": 12,
 					"TitleColor": "#ffffff"
+				}
+			]
+		},
+		{
+			"Name": "Rear",
+			"UUID": "com.ssheppdev.litra.rear",
+			"Icon": "imgs/actions/rear/icon",
+			"Tooltip": "Set Beam LX rear RGB presets, freestyle color, or off.",
+			"PropertyInspectorPath": "ui/rear.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"UserTitleEnabled": true,
+			"States": [
+				{
+					"Image": "imgs/actions/rear/key",
+					"TitleAlignment": "top",
+					"FontSize": 14,
+					"TitleColor": "#ffffff",
+					"ShowTitle": true
 				}
 			]
 		}
