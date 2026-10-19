@@ -99,9 +99,10 @@
 			"States": [
 				{
 					"Image": "imgs/actions/rear/key",
-					"TitleAlignment": "bottom",
+					"TitleAlignment": "top",
 					"FontSize": 12,
-					"TitleColor": "#ffffff"
+					"TitleColor": "#ffffff",
+					"ShowTitle": true
 				}
 			]
 		}

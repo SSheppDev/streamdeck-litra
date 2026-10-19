@@ -385,14 +385,20 @@ function parseHexColor(
 	opts?: { minChannel?: number },
 ): [number, number, number] {
 	const min = opts?.minChannel ?? 0;
+	// sdpi-color is #RRGGBB; some hosts persist #RRGGBBAA — ignore alpha.
 	const raw = (color ?? "").trim().replace(/^#/, "");
-	if (!/^[0-9a-fA-F]{6}$/.test(raw)) {
+	const hex = /^[0-9a-fA-F]{8}$/.test(raw)
+		? raw.slice(0, 6)
+		: /^[0-9a-fA-F]{6}$/.test(raw)
+			? raw
+			: null;
+	if (!hex) {
 		return fallback;
 	}
 	return [
-		Math.max(min, parseInt(raw.slice(0, 2), 16)),
-		Math.max(min, parseInt(raw.slice(2, 4), 16)),
-		Math.max(min, parseInt(raw.slice(4, 6), 16)),
+		Math.max(min, parseInt(hex.slice(0, 2), 16)),
+		Math.max(min, parseInt(hex.slice(2, 4), 16)),
+		Math.max(min, parseInt(hex.slice(4, 6), 16)),
 	];
 }
 
@@ -442,14 +448,15 @@ function writeRearEffect(device: Device, settings: RearSettings): void {
 	switch (effect) {
 		case "fixed": {
 			const [r, g, b] = parseHexColor(settings.color, [0x00, 0xff, 0xff]);
-			// Captured: 11 ff 0b 1c 00 00 00 RR GG BB 02
-			packet = [0x11, 0xff, 0x0b, 0x1c, 0x00, 0x00, 0x00, r, g, b, 0x02];
+			// OpenRGB 0x0001 / capture: 11 ff 0b 1c [cluster] [idx] RR GG BB 02
+			// Cyan verify was 00 00 00 ff ff 02 — the third 00 is R, not padding.
+			packet = [0x11, 0xff, 0x0b, 0x1c, 0x00, 0x00, r, g, b, 0x02];
 			break;
 		}
 		case "breathing": {
 			const [r, g, b] = parseHexColor(settings.color, [0x00, 0xff, 0xff]);
-			// Captured: 11 ff 0b 1c 00 01 00 RR GG BB PP PP 00 BR
-			packet = [0x11, 0xff, 0x0b, 0x1c, 0x00, 0x01, 0x00, r, g, b, pHi, pLo, 0x00, brightness];
+			// OpenRGB 0x000A / capture: 11 ff 0b 1c [cluster] [idx] RR GG BB PP PP 00 BR
+			packet = [0x11, 0xff, 0x0b, 0x1c, 0x00, 0x01, r, g, b, pHi, pLo, 0x00, brightness];
 			break;
 		}
 		case "color_cycle": {
