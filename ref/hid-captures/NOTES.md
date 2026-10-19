@@ -1,25 +1,132 @@
-# Litra Beam LX back-light research — status (paused)
+# Litra Beam LX back-light research
 
-**Status:** paused 2026-07-13  
-**Hardware:** 2× Litra Beam LX (`046d:c903`), synced in G HUB when testing presets  
-**Host:** macOS (SIP enabled), G HUB 39.x with DriverKit `com.logi.ghub.hidfilter`  
-**Plugin v1:** front white light only (`com.ssheppdev.litra`) — back RGB explicitly deferred  
+**Status:** The five named rear presets can be set without G HUB (verified 2026-10-19): Fixed, Breathing, Color Cycle, Color Wave, Pulsar Point. Reading the active preset is still not possible.  
+**Hardware:** 2× Litra Beam LX (`046d:c903`). Serial numbers report `UNKNOWN`. Address each light with the `DevSrvsID:…` path from `litra devices` (the id changes after replug).  
+**Host:** macOS. July captures were with G HUB running. The October checks were with only `lghub_updater` running, not `lghub_agent`.  
+**Plugin v1:** front white light only (`com.ssheppdev.litra`). The effect writes below are not in the plugin yet.
 
 This folder (`ref/hid-captures/`) holds raw JSON captures, Frida hook scaffolding, and this note. Upstream clones stay in `ref/litra` / `ref/litra-rs` (gitignored).
 
 ---
 
-## Executive summary
+## Verified control (2026-10-19)
+
+`litra` 3.3.0 (`/opt/homebrew/bin/litra`) covers the front light and the rear on/off, brightness, and solid color. Native animations are HID++ feature `0x8071` at feature index `0x0B` on this firmware. A solid color replaces an animation. An animation write does not go through `litra back-color`.
+
+| Control | Command | Seen on these lights |
+|---|---|---|
+| Front power, brightness, temperature | `litra on`, `brightness`, `temperature` | Both lights reported on, 141/400 lm, 3800 K, before later tests turned the fronts off |
+| Rear on / brightness | `litra back-on`, `back-brightness` | Yes. Raising the Pulsar light from 1% to 100% left Pulsar running |
+| Solid rear color, optional zone 1–7 | `litra back-color` | Yes. One light went solid red while the other stayed on Pulsar |
+| Color Wave | HID++ below | Yes. Rainbow, then one button press stepped it to Pulsar |
+| Pulsar Point | HID++ below | Yes. Left light matched the right light, which was already on Pulsar |
+| Same Pulsar slot, other parameters | HID++ below | Turns the rear dark |
+| Which preset is running | GET `0x8071` | No. Both clusters still report effect index `0` while Pulsar is visible |
+| Fixed, Breathing, Color Cycle | HID++ below | Yes. Left light showed solid cyan, then a pulse, then a color cycle, then returned to Pulsar |
+| Screen Sampler (`0x0013` candidate) | Not sent | Host-driven. The light does not sample the screen by itself |
+| Survives replug, sleep, or reboot | — | Not retested. The writes below used a volatile persist byte |
+
+G HUB screen-sampling LIGHTSYNC is a different feature. These commands select the light’s own effect. They do not sample the screen.
+
+### Packets
+
+Long HID++ report, report id `0x11`, device index `0xFF`, feature index `0x0B`, software id `0xC`. A SET without the claim is rejected: `11 ff ff 0b 1c 05`.
+
+Claim software control (OpenRGB `SetSWControl(3, 6)`), then set the effect. Send each report to one device path. Do not leave a second program holding the HID device.
+
+```text
+11 ff 0b 5c 01 03 06
+```
+
+Color Wave, cluster 1, effect index 1, id `0x0016`. Saturation `0xFF`, period `0x1388` (5000 ms), brightness `100`, direction `1` (right). This matches the OpenRGB `0x0016` layout and the button report from the rainbow step.
+
+```text
+11 ff 0b 1c 01 01 00 ff 00 00 00 00 13 88 64 01 00
+```
+
+Pulsar Point, cluster 1, effect index 2, id `0x0018`. Period `0x0BB8` (3000 ms), brightness `0x64`. The `b8 fc` bytes came from the button. Replaying the report without them turns the rear dark.
+
+```text
+11 ff 0b 1c 01 02 00 b8 fc 00 00 00 0b b8 64 00 00
+```
+
+Dark / off variant of that same slot, also captured from a button press and confirmed by replay:
+
+```text
+11 ff 0b 1c 01 02 00 00 00 0b b8 00 0b b8 64 00 00
+```
+
+`0x0018` is the slot. The parameter block chooses Pulsar versus dark. The meaning of `b8 fc` was not decoded; copy it.
+
+### How the button reports were taken
+
+G HUB’s agent was not running. The left light was solid red. The right light stayed on Pulsar and was only read, plus one brightness change. Listening on the left light’s HID++ interface showed a `0x8071` ClusterChanged event (`byte 3 = 0x20`) for each press:
+
+| What the left light did | Event |
+|---|---|
+| First press looked off | `11 ff 0b 20 01 02 00 00 00 0b b8 00 0b b8 64 00` |
+| Next press was a visible RGB effect | `11 ff 0b 20 01 01 00 ff 00 00 00 00 13 88 64 01` (Color Wave) |
+| From that rainbow, one press landed on Pulsar | `11 ff 0b 20 01 02 00 b8 fc 00 00 00 0b b8 64 00` |
+
+The host SET uses `0x1C` (function 1) with the same cluster, effect index, and parameter bytes as the event. The event itself is not the write.
+
+A read-only pass of feature indexes `0`–`12`, function 0, while one light was red and the other was on Pulsar, differed only in feature index `2` (`0x0003`, per-unit firmware identity). The active preset is still not in that GET surface.
+
+### Outside references checked the same day
+
+| Source | What it contributes |
+|---|---|
+| `litra` 3.3.0 / `timrogers/litra-rs` | Front light and rear on, brightness, zone color. No effect command. Commits after the backlight work are dependency bumps. |
+| `dxther/ha-litra` | Same rear byte sequences as litra-rs, including the `0x8081` commit. No effects. |
+| OpenRGB `RGBController_LogitechHIDPP20.cpp` | Names `0x0016` Color Wave and `0x0015` Spectrum Cycle. Does not name `0x0018` or `0x0013`. The Color Wave parameter layout matched the button. |
+| `libratbag` `hidpp20.h` | Generic ids only through `0x000C` (fixed, cycle `0x0003`, wave `0x0004`, breathing `0x000A`). |
+| `nenych/beamctl` | Same rear color commands plus a static preset file. Not installed. |
+| GlowWorm | Documents solid, pulsing, cycling, and color wave. Does not document Pulsar Point. Not installed. |
+
+### G HUB control surface
+
+Screenshots of G HUB for “LITRA BEAM LX - L” on 2026-10-19 show three LIGHTSYNC modes. Only Presets map onto the six firmware effects. Freestyle and Animations are ways of painting the seven zones.
+
+**Presets.** One effect, brightness 0–100:
+
+| G HUB name | Firmware id | Cluster, index | Visual |
+|---|---|---|---|
+| Fixed | `0x0001` | 0, 0 | Confirmed. Solid cyan |
+| Breathing | `0x000A` | 0, 1 | Confirmed. Cyan pulse |
+| Color Cycle | `0x0015` | 0, 2 | Confirmed. Cycled colors |
+| Color Wave | `0x0016` | 1, 1 | Confirmed. Rainbow |
+| Pulsar Point | `0x0018` | 1, 2 | Confirmed, only with the `b8 fc` parameter block |
+| Screen Sampler | `0x0013` candidate | 1, 0 | Not sent. This is host-driven: G HUB samples the display and writes zone colors. Selecting the menu item does not make the light sample the screen by itself |
+
+The Fixed, Breathing, and Color Cycle packets sent to the left light (`DevSrvsID:4299191912`) at 15:54 UTC, eight seconds apart, all returned a normal `11 ff 0b 1c` ack. The light was then returned to Pulsar. The sequence matched: solid cyan, a pulse, a color cycle, then Pulsar.
+
+```text
+11 ff 0b 1c 00 00 00 ff ff 02
+11 ff 0b 1c 00 01 00 ff ff 0b b8 00 64
+11 ff 0b 1c 00 02 00 ff 00 00 00 00 13 88 64
+```
+
+Fixed is cyan (`00 FF FF`) plus the OpenRGB fixed-color marker `02`. Breathing is the same cyan, period 3000 ms, brightness 100. Color Cycle is saturation `FF`, period 5000 ms, brightness 100.
+
+**Freestyle.** A single color across the seven rear zones, or per zone. The on-screen bar has seven dots. Quick groups are Left, Center, Right, and All. This is the `0x8081` zone write `litra back-color` already does (`--zone` 1–7). It replaces whatever preset is running. Which zone numbers sit in Left versus Center versus Right was not measured.
+
+**Animations.** Saved G HUB sequences, not firmware effects. The list in the screenshot was Contrast, Lightning, Ocean Wave, Red White and Blue, Verticol, and Add New Animation. Playback is Cycle, Reverse Cycle, Bounce, or Random, with a speed in milliseconds (200 ms shown). G HUB plays those by streaming zone colors. They are not in the `0x8071` catalog. A Stream Deck action can recreate a short sequence by stepping `back-color` per zone; it cannot load G HUB’s saved animation files.
+
+Stream Deck coverage that matches what the hardware will do on its own: front power / brightness / temperature, rear power / brightness, the five named presets above, and freestyle color per zone or quick group. Screen Sampler and the Animations library stay in G HUB unless something else samples the screen or plays the frames.
+
+---
+
+## July 2026 result
+
+Superseded for Color Wave and Pulsar Point by the section above. The catalog, the failed G HUB sniff, and the “active effect index stays 0” finding still stand.
 
 | Goal | Outcome |
 |------|---------|
-| Read which G HUB preset is active (Pulsar Point, Color Wave, …) | **Not available** via device GETs while G HUB is running |
+| Read which G HUB preset is active (Pulsar Point, Color Wave, …) | **Not available** via device GETs. Rechecked 2026-10-19 with G HUB’s agent quit; still not available |
 | Set solid zone colors without G HUB | **Works** (`litra` CLI / `0x8081` zone + commit) |
 | Set back on / brightness % | **Works** (`0x8040`, same as litra-rs) |
-| Map Pulsar / Color Wave to HID++ effect IDs | **Incomplete** — catalog known; G HUB does not expose live effect via polled registers |
-| Sniff G HUB HID writes on this Mac | **Blocked** — Hardened Runtime + SIP; agent uses DriverKit HID filter |
-
-**Practical v2 scope when resumed:** back on/off, back brightness %, solid (and maybe per-zone) RGB via known SET path. Named G HUB animations are a separate, harder track (USB sniff with SIP off, or Linux usbmon).
+| Map Pulsar / Color Wave to HID++ effect IDs | **Done 2026-10-19** by capturing button events, not by polling. See above |
+| Sniff G HUB HID writes on this Mac | **Blocked** — Hardened Runtime + SIP; agent uses DriverKit HID filter. Not required for these two effects |
 
 ---
 
@@ -123,7 +230,7 @@ Capture: `rgb-effects-catalog-2026-07-13T16-51-39-170Z.json`.
 
 `SET_LED_EFFECT` is fn1 (OpenRGB `LOGITECH_FP8071_SET_LED_EFFECT`). SW control is fn5 with OpenRGB pattern `[1, 3, control]` (control `5` = SW). Taking SW control can interfere with firmware / G HUB animations.
 
-**Visual mapping:** incomplete. User reported “bounding” during an earlier multi-step cycle (likely breathing). Later A/B breathing-only test was inconclusive; one device was knocked **off** after effect SET. **Do not treat `0x0015`/`0x0016`/`0x0018` as named presets until remapped carefully with G HUB fully quit and one change at a time.**
+**Visual mapping (updated 2026-10-19):** `0x0001` Fixed, `0x000A` Breathing, `0x0015` Color Cycle, `0x0016` Color Wave, and `0x0018` with parameters `00 b8 fc 00 00 00 0b b8 64 00` Pulsar Point. The same `0x0018` slot with `00 00 00 0b b8 00 0b b8 64 00` turns the rear dark. `0x0013` is still unconfirmed and is the Screen Sampler candidate. July attempts that wrote the Pulsar slot without the button’s parameter block knocked a rear light off; that part of the warning still applies.
 
 Cluster `effect_index` (byte after cluster id in `[c, 0xFF]` response) stayed `0` for Pulsar Point, Color Wave, and fixed color while G HUB ran — **not a usable live “current preset” signal under G HUB**.
 
@@ -139,7 +246,7 @@ User switched presets; we dumped status / zones / later `0x8071`:
 | Color Wave | `color-wave-*.json` | No effect fingerprint change |
 | Fixed `#FF0000` | `fixed-ff0000-*.json` | Zones still read white; only on/bri differed when a lamp was off |
 
-**Conclusion:** named presets are **not** distinguishable on the GET surface we know. G HUB almost certainly renders synced animations in software (possibly via the HID filter dext) without updating `0x8071` cluster selection or `0x8081` zone registers in a way we can poll.
+**Conclusion:** named presets are **not** distinguishable on the GET surface we know. That part was rechecked on 2026-10-19. The “G HUB only renders in software” part is not the whole story: with the agent quit, the button emits `0x8071` ClusterChanged events, and a host can SET Color Wave and Pulsar Point on that feature. July polling never saw those writes because G HUB was between us and the device.
 
 ---
 
@@ -210,7 +317,7 @@ Raw Frida/monitor `.jsonl` streams and `.venv-frida/` are gitignored — recreat
    - back brightness %  
    - set all zones + commit (single color); optional `--zone` later  
 2. New Stream Deck actions + PI, same broadcast/stateless pattern as front light.  
-3. Do **not** promise G HUB preset names until sniffing or careful effect mapping lands.  
+3. Fixed, Breathing, Color Cycle, Color Wave, and Pulsar Point now have verified SETs (see the 2026-10-19 section). `0x0013` / Screen Sampler still does not.  
 4. Document: quit G HUB (or expect fights) when using plugin back RGB; hidfilter/agent may reclaim.
 
 ### Research — only if named presets matter
@@ -222,7 +329,7 @@ Raw Frida/monitor `.jsonl` streams and `.venv-frida/` are gitignored — recreat
 
 ### Explicit non-goals while paused
 
-- Shipping Pulsar Point / Color Wave as first-class actions.  
+- Treating `0x0013` as Screen Sampler until a host write shows the light following the display. Fixed, Breathing, Color Cycle, Color Wave, and Pulsar Point are verified.  
 - Relying on Frida against hardened `lghub_agent` without SIP changes.  
 - Treating `0x0c 1b` probes as safe color reads.
 
@@ -230,11 +337,12 @@ Raw Frida/monitor `.jsonl` streams and `.venv-frida/` are gitignored — recreat
 
 ## Open questions
 
-1. Exact wire mapping of G HUB “Pulsar Point” / “Color Wave” / “Fixed” (effect SET vs streamed zone frames).  
-2. Whether synced lights get one USB conversation or two.  
-3. Safe GET for current zone RGB (if any).  
-4. Stable `0x8071` SET sequence that selects firmware effects without turning back off or wedging HID.  
-5. Behavior when plugin and G HUB both run (ownership / flicker).
+1. Fixed (`0x0001`), Breathing (`0x000A`), Color Cycle (`0x0015`), Color Wave (`0x0016`), and Pulsar Point (`0x0018` plus `00 b8 fc …`) are verified SETs. A solid freestyle color is the `0x8081` zone path, which replaces the animation. `0x0013` is the remaining catalog entry and the Screen Sampler candidate.  
+2. Whether synced lights get one USB conversation or two. The two lights here are addressed separately and do not have to show the same effect.  
+3. Safe GET for current zone RGB or the active effect (if any). The effect index stayed `0` while Pulsar was visible.  
+4. Whether a non-zero persist byte keeps Pulsar across replug, sleep, and reboot. The verified writes were volatile.  
+5. Behavior when the plugin and G HUB’s HID agent both run (ownership / flicker).  
+6. What `b8 fc` means inside the Pulsar parameter block. Copy the captured bytes until that is known.
 
 ---
 

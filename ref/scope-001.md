@@ -66,9 +66,9 @@ Property inspectors: simple `sdpi-components` forms (number/slider fields for pr
 - Per-device selection/targeting UI — v1 is intentionally all-or-nothing across every connected Litra device; a picker can be added later without changing `litra-manager`'s broadcast methods (it would just filter which devices they loop over).
 - Any use of `litra-rs`, its CLI, or its MCP server.
 
-### Back-light research pause (2026-07-13)
+### Back-light research (updated 2026-10-19)
 
-Exploratory HID++ work for Beam LX back RGB / G HUB presets is **paused**. Findings, feature map, capture index, macOS sniff blockers (Hardened Runtime + `com.logi.ghub.hidfilter` + SIP), and a recommended v2 SET-only slice live in **`ref/hid-captures/NOTES.md`**. Do not assume named presets (Pulsar Point, Color Wave) are readable from the device while G HUB is running.
+Rear on/off, brightness, solid color, and the five named presets (Fixed, Breathing, Color Cycle, Color Wave, Pulsar Point) can be set without G HUB. The active preset still cannot be read back. Packets, the button captures, and what was confirmed by eye are in **`ref/hid-captures/NOTES.md`**. The plugin does not send those effect writes yet. Do not assume a GET reports Pulsar Point or Color Wave while either one is visible.
 
 ## Verification
 
