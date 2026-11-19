@@ -1,6 +1,6 @@
 {
 	"name": "com.ssheppdev.litra",
-	"version": "1.1.1",
+	"version": "1.1.2",
 	"private": true,
 	"description": "Elgato Stream Deck plugin for Logitech Litra lights (Glow, Beam, Beam LX front light).",
 	"license": "MIT",
@@ -31,7 +31,7 @@
 	},
 	"type": "module",
 	"devDependencies": {
-		"@elgato/cli": "^1.10.2",
+		"@elgato/cli": "^1.10.4",
 		"@rollup/plugin-commonjs": "^29.0.2",
 		"@rollup/plugin-node-resolve": "^16.0.3",
 		"@rollup/plugin-terser": "^1.0.0",
@@ -44,7 +44,7 @@
 		"typescript": "~5.9.3"
 	},
 	"dependencies": {
-		"@elgato/streamdeck": "^3.0.2",
+		"@elgato/streamdeck": "^3.0.4",
 		"litra": "^4.5.1"
 	},
 	"allowScripts": {
